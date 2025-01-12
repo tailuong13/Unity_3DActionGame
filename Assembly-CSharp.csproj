@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="Assets\Game\Scripts\PlayerInput.cs" />
     <Compile Include="Assets\Game\Scripts\EnemyVFXManager.cs" />
+    <Compile Include="Assets\Game\Scripts\PickUp.cs" />
     <Compile Include="Assets\Game\Scripts\DamageCaster.cs" />
     <Compile Include="Assets\ProjectLittleAdventurer\Tool\G_Culler.cs" />
     <Compile Include="Assets\Game\Scripts\PlayerVFXManager.cs" />
@@ -52,7 +53,13 @@
     <Compile Include="Assets\Game\Scripts\DropWeapons.cs" />
     <Compile Include="Assets\Game\Scripts\Character.cs" />
     <Compile Include="Assets\ProjectLittleAdventurer\Tool\G_CullManager.cs" />
-    <Compile Include="Assets\Game\Scripts\PickUp.cs" />
+    <Compile Include="Assets\Game\Scripts\DamageOrb.cs" />
+    <Compile Include="Assets\Game\Scripts\Enemy_02Shoot.cs" />
+    <Compile Include="Assets\Game\Scripts\Spawner.cs" />
+    <Compile Include="Assets\Game\Scripts\SpawnPoint.cs" />
+    <Compile Include="Assets\Game\Scripts\Gate.cs" />
+    <Compile Include="Assets\Game\Scripts\GameManager.cs" />
+    <Compile Include="Assets\Game\Scripts\Rotator.cs" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\2021.3.45f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>

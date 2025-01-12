@@ -25,7 +25,9 @@ public class Character : MonoBehaviour
         Normal,
         Attacking,
         Dead,
-        BeingHit
+        BeingHit,
+        Slide,
+        Spawn
     }
     public CharacterState CurrentState;
     
@@ -57,6 +59,12 @@ public class Character : MonoBehaviour
     public bool isInvinsible;
     public float invinsibleDuration = 2f;
 
+    private float _attackAnimationDuration;
+    
+    //Spawn
+    public float spawnDuration = 2f;
+    private float _currentSpawnTime;
+
     private void Awake()
     {
         _cc = GetComponent<CharacterController>();
@@ -72,6 +80,7 @@ public class Character : MonoBehaviour
             _navMeshAgent = GetComponent<NavMeshAgent>();
             _targetPlayer = GameObject.FindWithTag("Player").transform;
             _navMeshAgent.speed = MoveSpeed;
+            SwitchStateTo(CharacterState.Spawn);
         }
         else
         {
@@ -84,6 +93,10 @@ public class Character : MonoBehaviour
         if(_playerInput.MouseButtonDown && _cc.isGrounded)
         {
             SwitchStateTo(CharacterState.Attacking);
+            return;
+        } else if (_playerInput.SpaceKeyDown && _cc.isGrounded)
+        {
+            SwitchStateTo(CharacterState.Slide);
             return;
         }
         
@@ -143,6 +156,20 @@ public class Character : MonoBehaviour
                         float lerpTime = timePassed / attackSlideDuration;
                         _movementVelocity = Vector3.Lerp(transform.forward * attackSlideSpeed, Vector3.zero, lerpTime);
                     }
+                    
+                    if (_playerInput.MouseButtonDown && _cc.isGrounded)
+                    {
+                        string currentClipName = _animator.GetCurrentAnimatorClipInfo(0)[0].clip.name;
+                        _attackAnimationDuration = _animator.GetCurrentAnimatorStateInfo(0).normalizedTime;
+
+                        if (currentClipName != "LittleAdventurerAndie_ATTACK_03" && _attackAnimationDuration > 0.5f &&
+                            _attackAnimationDuration < 0.7f)
+                        {
+                            _playerInput.MouseButtonDown = false;
+                            SwitchStateTo(CharacterState.Attacking);
+                            CalculatedPlayerMovement();
+                        }
+                    }
                 }
                 break;
             case CharacterState.Dead:
@@ -153,6 +180,16 @@ public class Character : MonoBehaviour
                     _movementVelocity= _imnpactOnCharacter * Time.deltaTime;
                 }
                 _imnpactOnCharacter = Vector3.Lerp(_imnpactOnCharacter, Vector3.zero, 5f * Time.deltaTime);
+                break;
+            case CharacterState.Slide:
+                _movementVelocity = transform.forward * MoveSpeed * Time.deltaTime;
+                break;
+            case CharacterState.Spawn:
+                _currentSpawnTime -= Time.deltaTime;
+                if (_currentSpawnTime <= 0)
+                {
+                    SwitchStateTo(CharacterState.Normal);
+                }
                 break;
         }
         
@@ -178,7 +215,7 @@ public class Character : MonoBehaviour
     {
         if (isPlayer)
         {
-            _playerInput.MouseButtonDown = false;
+            _playerInput.ClearCache();
         }
         
         //Exiting case
@@ -191,10 +228,20 @@ public class Character : MonoBehaviour
                 {
                     DisableDamageCaster();
                 }
+                if (isPlayer)
+                {
+                    GetComponent<PlayerVFXManager>().StopBlade();
+                }
                 break;
+            
             case CharacterState.Dead:
                 return;
             case CharacterState.BeingHit:
+                break;
+            case CharacterState.Slide:
+                break;
+            case CharacterState.Spawn:
+                isInvinsible = false;
                 break;
         }
         
@@ -233,12 +280,25 @@ public class Character : MonoBehaviour
                 }
                 
                 break;
+            case CharacterState.Slide:
+                _animator.SetTrigger("Slide");
+                break;
+            case CharacterState.Spawn:
+                isInvinsible = true;
+                _currentSpawnTime = spawnDuration;
+                StartCoroutine(MaterialAppear());
+                break;
         }
         
         CurrentState = newState;
         
     }
 
+    public void SlideAnimationEnds()
+    {
+        SwitchStateTo(CharacterState.Normal);
+    }
+    
     public void AttackAnimationEnds()
     {
         SwitchStateTo(CharacterState.Normal);
@@ -315,32 +375,6 @@ public class Character : MonoBehaviour
         _materialPropertyBlock.SetFloat("_blink", 0f);
         _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
     }
-
-    IEnumerator MaterialDissolve()
-    {
-        yield return new WaitForSeconds(2f);
-
-        float dissolveTimeDuration = 2f;
-        float currentDissolveTime = 0;
-        float dissolveHeight_start = 20f;
-        float dissolveHeight_end = -10f;
-        float dissolveHeight;
-        
-        _materialPropertyBlock.SetFloat("_enableDissolve", 1f);
-        _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
-        
-        while(currentDissolveTime < dissolveTimeDuration)
-        {
-            currentDissolveTime += Time.deltaTime;
-            dissolveHeight = Mathf.Lerp(dissolveHeight_start, dissolveHeight_end, currentDissolveTime / dissolveTimeDuration);
-            _materialPropertyBlock.SetFloat("_dissolve_height", dissolveHeight);
-            _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
-            
-            yield return null;
-        }
-        
-        DropItem();
-    }
     
     private void DropItem()
     {
@@ -372,5 +406,64 @@ public class Character : MonoBehaviour
     private void AddCoin(int value)
     {
         coin += value;
+    }
+
+    public void RotateToTarget()
+    {
+        if (CurrentState != CharacterState.Dead)
+        {
+            transform.LookAt(_targetPlayer, Vector3.up);
+        }
+    }
+    
+    IEnumerator MaterialDissolve()
+    {
+        yield return new WaitForSeconds(2f);
+
+        float dissolveTimeDuration = 2f;
+        float currentDissolveTime = 0;
+        float dissolveHeight_start = 20f;
+        float dissolveHeight_end = -10f;
+        float dissolveHeight;
+        
+        _materialPropertyBlock.SetFloat("_enableDissolve", 1f);
+        _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
+        
+        while(currentDissolveTime < dissolveTimeDuration)
+        {
+            currentDissolveTime += Time.deltaTime;
+            dissolveHeight = Mathf.Lerp(dissolveHeight_start, dissolveHeight_end, currentDissolveTime / dissolveTimeDuration);
+            _materialPropertyBlock.SetFloat("_dissolve_height", dissolveHeight);
+            _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
+            
+            yield return null;
+        }
+        
+        DropItem();
+    }
+
+    IEnumerator MaterialAppear()
+    {
+        float dissolveTimeDuration = spawnDuration;
+        float currentDissolveTime = 0;
+        float dissolveHeight_start = -10f;
+        float dissolveHeight_end = 20f;
+        float dissolveHeight;
+        
+        _materialPropertyBlock.SetFloat("_enableDissolve", 1f);
+        _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
+        
+        while(currentDissolveTime < dissolveTimeDuration)
+        {
+            currentDissolveTime += Time.deltaTime;
+            dissolveHeight = Mathf.Lerp(dissolveHeight_start, dissolveHeight_end, currentDissolveTime / dissolveTimeDuration);
+            _materialPropertyBlock.SetFloat("_dissolve_height", dissolveHeight);
+            _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
+            
+            yield return null;
+        }
+        
+        _materialPropertyBlock.SetFloat("_enableDissolve", 0f);
+        _skinnedMeshRenderer.SetPropertyBlock(_materialPropertyBlock);
     }
 }
