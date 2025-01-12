@@ -6,6 +6,14 @@ public class Health : MonoBehaviour
 {
     public int maxHealth = 100;
     public int currentHealth;
+
+    public float currentHealthPercent
+    {
+        get
+        {
+            return (float)currentHealth /(float)maxHealth;
+        }
+    }
     private Character _cc;
     
     private void Awake()
